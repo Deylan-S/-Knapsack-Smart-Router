@@ -3,8 +3,8 @@
  */
 
 import { useState, useCallback } from "react";
-import { resolverMochilaPD } from "../src/algoritmos/programacionDinamica";
-import { consultarAgente, ALGORITMOS } from "../src/algoritmos/agenteIA";
+import { resolverMochilaPD } from "../algoritmos/programacionDinamica";
+import { consultarAgente, ALGORITMOS } from "../algoritmos/agenteIA";
 
 // Cambiar cuando los modulos esten listos:
 // import { resolverMochilaBacktracking } from "../src/algoritmos/backtracking";

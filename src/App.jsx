@@ -5,7 +5,7 @@
  * Módulos del compañero: backtracking.js, greedy.js (se integran en usarMochila.js)
  */
 
-import { usarMochila } from "./hooks/usarMochila";
+import { usarMochila } from "./logica/usarMochila";
 import TablaObjetos from "./componentes/TablaObjetos";
 import DecisionAgente from "./componentes/DecisionAgente";
 import PanelEstadisticas from "./componentes/PanelEstadisticas";
