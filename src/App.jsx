@@ -1,11 +1,10 @@
 /**
  * App.jsx
  * Componente raíz. Orquesta toda la interfaz del Knapsack Smart Router.
- * Módulos propios: programacionDinamica.js, agenteIA.js
- * Módulos del compañero: backtracking.js, greedy.js (se integran en usarMochila.js)
  */
 
-import { usarMochila } from "./logica/usarMochila";
+import { usarMochila } from "./hooks/usarMochila";
+import { ALGORITMOS } from "./algoritmos/agenteIA";
 import TablaObjetos from "./componentes/TablaObjetos";
 import DecisionAgente from "./componentes/DecisionAgente";
 import PanelEstadisticas from "./componentes/PanelEstadisticas";
@@ -76,13 +75,22 @@ function StatusBar({ fase, mensaje, error }) {
       borderRadius: "var(--border-radius-md)",
       padding: "0.75rem 1rem", fontSize: "13px", marginBottom: "1rem",
     }}>
-      <span style={fase === "consultando" || fase === "ejecutando" ? { animation: "spin 1s linear infinite", display: "inline-block" } : {}}>
+      <span style={fase === "consultando" || fase === "ejecutando"
+        ? { animation: "spin 1s linear infinite", display: "inline-block" } : {}}>
         {c.icono}
       </span>
       {fase === "error" ? error : mensaje}
     </div>
   );
 }
+
+// ── Etiquetas legibles para cada algoritmo ────────────────────────────────────
+const ETIQUETAS_ALGORITMO = {
+  auto:                        "Automático (agente de IA)",
+  [ALGORITMOS.BACKTRACKING]:   "Backtracking",
+  [ALGORITMOS.PROGRAMACION_DINAMICA]: "Programación Dinámica",
+  [ALGORITMOS.GREEDY]:         "Ávido (Greedy)",
+};
 
 // ── App principal ─────────────────────────────────────────────────────────────
 
@@ -91,13 +99,24 @@ export default function App() {
     objetos, capacidad, setCapacidad,
     n, setN, prioridad, setPrioridad,
     tiempoLimite, setTiempoLimite, apiKey, setApiKey,
+    algoritmoManual, setAlgoritmoManual,
     fase, mensajeFase, error,
     decisionAgente, resultadoDP,
     generarAleatorio, resolver, soloDP,
   } = usarMochila();
 
-  const cargando = fase === "consultando" || fase === "ejecutando";
-  const seleccionados = resultadoDP?.objetosSeleccionados ?? [];
+  const cargando    = fase === "consultando" || fase === "ejecutando";
+  const modoManual  = algoritmoManual !== "auto";
+
+  // IDs seleccionados para resaltar en la tabla
+  const idsSeleccionados = resultadoDP?.objetosSeleccionados ?? [];
+
+  // etiqueta del botón principal
+  const labelBoton = cargando
+    ? "Procesando..."
+    : modoManual
+      ? `Ejecutar ${ETIQUETAS_ALGORITMO[algoritmoManual]} ↗`
+      : "Consultar agente y resolver ↗";
 
   return (
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "2rem 1rem", fontFamily: "var(--font-sans)" }}>
@@ -119,11 +138,51 @@ export default function App() {
           placeholder="AIza..."
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          style={{ width: "100%" }}
+          disabled={modoManual}
+          style={{ width: "100%", opacity: modoManual ? 0.4 : 1 }}
         />
+        {modoManual && (
+          <p style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "4px" }}>
+            No se necesita API Key en modo de selección manual.
+          </p>
+        )}
       </SectionCard>
 
-      {/* ── Configuración ── */}
+      {/* ── Selección manual de algoritmo ── */}
+      <SectionCard style={{ border: "0.5px solid var(--color-border-secondary)" }}>
+        <SectionTitle>Selección manual de algoritmo</SectionTitle>
+        <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "10px" }}>
+          Elija un algoritmo específico para forzar su ejecución sin consultar al agente de IA,
+          o deje en "Automático" para que el agente decida.
+        </p>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {Object.entries(ETIQUETAS_ALGORITMO).map(([valor, etiqueta]) => {
+            const activo = algoritmoManual === valor;
+            return (
+              <button
+                key={valor}
+                onClick={() => setAlgoritmoManual(valor)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "var(--border-radius-md)",
+                  border: activo
+                    ? "1.5px solid var(--color-text-primary)"
+                    : "0.5px solid var(--color-border-secondary)",
+                  background: activo ? "var(--color-text-primary)" : "transparent",
+                  color: activo ? "var(--color-background-primary)" : "var(--color-text-primary)",
+                  fontSize: "12px", fontWeight: activo ? 600 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {activo ? "✓ " : ""}{etiqueta}
+              </button>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      {/* ── Configuración del problema ── */}
       <SectionCard>
         <SectionTitle>⚙ Configuración del problema</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
@@ -150,7 +209,8 @@ export default function App() {
             <label style={{ fontSize: "12px", color: "var(--color-text-secondary)", display: "block", marginBottom: "4px" }}>
               Prioridad del usuario
             </label>
-            <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} style={{ width: "100%" }}>
+            <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)}
+              style={{ width: "100%", opacity: modoManual ? 0.4 : 1 }} disabled={modoManual}>
               <option value="exactitud">Máxima exactitud</option>
               <option value="velocidad">Velocidad máxima</option>
             </select>
@@ -160,23 +220,29 @@ export default function App() {
               Tiempo límite tolerable (s)
             </label>
             <input type="number" min={1} max={300} value={tiempoLimite}
-              onChange={(e) => setTiempoLimite(parseFloat(e.target.value) || 1)} />
+              onChange={(e) => setTiempoLimite(parseFloat(e.target.value) || 1)}
+              style={{ opacity: modoManual ? 0.4 : 1 }} disabled={modoManual} />
           </div>
         </div>
+        {modoManual && (
+          <p style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "8px" }}>
+            La prioridad y el tiempo límite solo aplican al modo automático del agente.
+          </p>
+        )}
       </SectionCard>
 
       {/* ── Tabla de objetos ── */}
       {objetos.length > 0 && (
         <SectionCard>
           <SectionTitle>Objetos del problema</SectionTitle>
-          <TablaObjetos objetos={objetos} seleccionados={seleccionados} />
+          <TablaObjetos objetos={objetos} seleccionados={idsSeleccionados} />
         </SectionCard>
       )}
 
       {/* ── Botones de acción ── */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "1rem", flexWrap: "wrap" }}>
         <Btn primary onClick={resolver} disabled={cargando || objetos.length === 0}>
-          {cargando ? "Procesando..." : "Consultar agente y resolver ↗"}
+          {labelBoton}
         </Btn>
         {objetos.length > 0 && (
           <Btn onClick={soloDP} disabled={cargando}>
@@ -198,22 +264,24 @@ export default function App() {
       {/* ── Resultado ── */}
       {resultadoDP && (
         <SectionCard>
-          <SectionTitle>✓ Resultado — programación dinámica</SectionTitle>
+          <SectionTitle>✓ Resultado — {ETIQUETAS_ALGORITMO[decisionAgente?.algoritmoElegido] ?? "algoritmo"}</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "1rem" }}>
             {[
-              { label: "Valor óptimo", value: resultadoDP.valorOptimo },
-              { label: `Peso usado / W`, value: `${resultadoDP.pesoTotal} / ${capacidad}` },
+              { label: "Valor óptimo",     value: resultadoDP.valorOptimo },
+              { label: "Peso usado / W",   value: `${resultadoDP.pesoTotal} / ${capacidad}` },
               { label: "Objetos elegidos", value: resultadoDP.objetosSeleccionados.length },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: "var(--color-background-secondary)",
-                borderRadius: "var(--border-radius-md)", padding: "0.75rem 1rem" }}>
+              <div key={label} style={{
+                background: "var(--color-background-secondary)",
+                borderRadius: "var(--border-radius-md)", padding: "0.75rem 1rem",
+              }}>
                 <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "4px" }}>{label}</div>
                 <div style={{ fontSize: "22px", fontWeight: 500 }}>{value}</div>
               </div>
             ))}
           </div>
           <SectionTitle>Objetos seleccionados</SectionTitle>
-          <TablaObjetos objetos={objetos} seleccionados={seleccionados} />
+          <TablaObjetos objetos={objetos} seleccionados={idsSeleccionados} />
         </SectionCard>
       )}
 
