@@ -1,6 +1,6 @@
 /**
  * App.jsx
- * Componente raíz. Orquesta toda la interfaz del Knapsack Smart Router.
+ * Componente raíz, controla toda la interfaz del Knapsack Smart Router.
  */
 
 import { usarMochila } from "./hooks/usarMochila";
@@ -29,31 +29,36 @@ function SectionCard({ children, style }) {
 function SectionTitle({ children }) {
   return (
     <p style={{
-      fontSize: "12px", fontWeight: 500, color: "var(--color-text-secondary)",
-      textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem",
+      fontFamily: "var(--font-mono)",
+      fontSize: "10px", fontWeight: 500,
+      color: "var(--color-text-secondary)",
+      textTransform: "uppercase", letterSpacing: ".12em",
+      marginBottom: "16px",
+      display: "flex", alignItems: "center", gap: "8px",
     }}>
       {children}
+      <span style={{ flex: 1, height: "1px", background: "#252A38", display: "block" }} />
     </p>
   );
 }
 
 function Btn({ children, onClick, disabled, primary }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: "6px",
-        padding: "8px 16px", borderRadius: "var(--border-radius-md)",
-        border: "0.5px solid var(--color-border-secondary)",
-        background: primary ? "var(--color-text-primary)" : "transparent",
-        color: primary ? "var(--color-background-primary)" : "var(--color-text-primary)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: "13px", fontWeight: 500,
-        opacity: disabled ? 0.4 : 1,
-        transition: "opacity 0.15s",
-      }}
-    >
+    <button onClick={onClick} disabled={disabled} style={{
+      display: "inline-flex", alignItems: "center", gap: "7px",
+      padding: "9px 18px",
+      borderRadius: "var(--border-radius-md)",
+      border: primary ? "1px solid #00E5A0" : "1px solid #252A38",
+      background: primary ? "#00E5A0" : "transparent",
+      color: primary ? "#000" : "var(--color-text-secondary)",
+      fontFamily: primary ? "var(--font-sans)" : "var(--font-sans)",
+      fontWeight: primary ? 600 : 500,
+      fontSize: "13px",
+      cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.35 : 1,
+      transition: "all .2s",
+      whiteSpace: "nowrap",
+    }}>
       {children}
     </button>
   );
@@ -141,50 +146,12 @@ export default function App() {
           disabled={modoManual}
           style={{ width: "100%", opacity: modoManual ? 0.4 : 1 }}
         />
-        {modoManual && (
-          <p style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "4px" }}>
-            No se necesita API Key en modo de selección manual.
-          </p>
-        )}
-      </SectionCard>
-
-      {/* ── Selección manual de algoritmo ── */}
-      <SectionCard style={{ border: "0.5px solid var(--color-border-secondary)" }}>
-        <SectionTitle>Selección manual de algoritmo</SectionTitle>
-        <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "10px" }}>
-          Elija un algoritmo específico para forzar su ejecución sin consultar al agente de IA,
-          o deje en "Automático" para que el agente decida.
-        </p>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {Object.entries(ETIQUETAS_ALGORITMO).map(([valor, etiqueta]) => {
-            const activo = algoritmoManual === valor;
-            return (
-              <button
-                key={valor}
-                onClick={() => setAlgoritmoManual(valor)}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: "var(--border-radius-md)",
-                  border: activo
-                    ? "1.5px solid var(--color-text-primary)"
-                    : "0.5px solid var(--color-border-secondary)",
-                  background: activo ? "var(--color-text-primary)" : "transparent",
-                  color: activo ? "var(--color-background-primary)" : "var(--color-text-primary)",
-                  fontSize: "12px", fontWeight: activo ? 600 : 400,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {activo ? "✓ " : ""}{etiqueta}
-              </button>
-            );
-          })}
-        </div>
+        
       </SectionCard>
 
       {/* ── Configuración del problema ── */}
       <SectionCard>
-        <SectionTitle>⚙ Configuración del problema</SectionTitle>
+        <SectionTitle>Configuración del problema</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           <div>
             <label style={{ fontSize: "12px", color: "var(--color-text-secondary)", display: "block", marginBottom: "4px" }}>
@@ -244,11 +211,6 @@ export default function App() {
         <Btn primary onClick={resolver} disabled={cargando || objetos.length === 0}>
           {labelBoton}
         </Btn>
-        {objetos.length > 0 && (
-          <Btn onClick={soloDP} disabled={cargando}>
-            𝑓 Solo DP (sin agente)
-          </Btn>
-        )}
       </div>
 
       {/* ── Status ── */}
