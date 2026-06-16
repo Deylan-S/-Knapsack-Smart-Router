@@ -9,7 +9,6 @@ import TablaObjetos from "./componentes/TablaObjetos";
 import DecisionAgente from "./componentes/DecisionAgente";
 import PanelEstadisticas from "./componentes/PanelEstadisticas";
 
-// ── Componentes pequeños inline ───────────────────────────────────────────────
 
 function SectionCard({ children, style }) {
   return (
@@ -89,7 +88,7 @@ function StatusBar({ fase, mensaje, error }) {
   );
 }
 
-// ── Etiquetas legibles para cada algoritmo ────────────────────────────────────
+//Etiquetas legibles para cada algoritmo 
 const ETIQUETAS_ALGORITMO = {
   auto:                        "Automático (agente de IA)",
   [ALGORITMOS.BACKTRACKING]:   "Backtracking",
@@ -97,7 +96,7 @@ const ETIQUETAS_ALGORITMO = {
   [ALGORITMOS.GREEDY]:         "Ávido (Greedy)",
 };
 
-// ── App principal ─────────────────────────────────────────────────────────────
+//App principal
 
 export default function App() {
   const {
@@ -121,7 +120,7 @@ export default function App() {
     ? "Procesando..."
     : modoManual
       ? `Ejecutar ${ETIQUETAS_ALGORITMO[algoritmoManual]} ↗`
-      : "Consultar agente y resolver ↗";
+      : "Consultar agente y resolver";
 
   return (
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "2rem 1rem", fontFamily: "var(--font-sans)" }}>
@@ -140,7 +139,7 @@ export default function App() {
         </label>
         <input
           type="password"
-          placeholder="AIza..."
+          placeholder="API Key de Gemini"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           disabled={modoManual}
@@ -226,7 +225,7 @@ export default function App() {
       {/* ── Resultado ── */}
       {resultadoDP && (
         <SectionCard>
-          <SectionTitle>✓ Resultado — {ETIQUETAS_ALGORITMO[decisionAgente?.algoritmoElegido] ?? "algoritmo"}</SectionTitle>
+          <SectionTitle> Resultado — {ETIQUETAS_ALGORITMO[decisionAgente?.algoritmoElegido] ?? "algoritmo"}</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "1rem" }}>
             {[
               { label: "Valor óptimo",     value: resultadoDP.valorOptimo },

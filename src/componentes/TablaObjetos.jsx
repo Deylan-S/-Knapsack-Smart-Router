@@ -5,6 +5,9 @@
 export default function TablaObjetos({ objetos, seleccionados = [] }) {
   if (!objetos || objetos.length === 0) return null;
 
+  const COLOR_ACENTO = "#00E5A0";
+  const FONDO_SEL = "rgba(0, 229, 160, 0.12)";
+
   return (
     <div>
       <div style={{ overflowX: "auto", marginBottom: "0.75rem" }}>
@@ -23,11 +26,11 @@ export default function TablaObjetos({ objetos, seleccionados = [] }) {
               return (
                 <tr key={o.id} style={{
                   borderBottom: "0.5px solid var(--color-border-tertiary)",
-                  background: sel ? "#E1F5EE" : "transparent",
+                  background: sel ? FONDO_SEL : "transparent",
                 }}>
                   <td style={{ padding: "6px 10px" }}>{o.id}</td>
-                  <td style={{ padding: "6px 10px", fontWeight: sel ? 500 : 400,
-                    color: sel ? "#0F6E56" : "var(--color-text-primary)" }}>{o.nombre}</td>
+                  <td style={{ padding: "6px 10px", fontWeight: sel ? 600 : 400,
+                    color: sel ? COLOR_ACENTO : "var(--color-text-primary)" }}>{o.nombre}</td>
                   <td style={{ padding: "6px 10px", textAlign: "right" }}>{o.peso}</td>
                   <td style={{ padding: "6px 10px", textAlign: "right" }}>{o.valor}</td>
                   <td style={{ padding: "6px 10px", textAlign: "right" }}>{(o.valor / o.peso).toFixed(2)}</td>
@@ -43,18 +46,18 @@ export default function TablaObjetos({ objetos, seleccionados = [] }) {
           const sel = seleccionados.includes(o.id);
           return (
             <div key={o.id} style={{
-              border: `0.5px solid ${sel ? "#1D9E75" : "var(--color-border-tertiary)"}`,
+              border: `1px solid ${sel ? COLOR_ACENTO : "var(--color-border-tertiary)"}`,
               borderRadius: "var(--border-radius-md)",
               padding: "8px",
               textAlign: "center",
-              background: sel ? "#E1F5EE" : "var(--color-background-primary)",
+              background: sel ? FONDO_SEL : "var(--color-background-primary)",
               position: "relative",
               transition: "all 0.2s",
             }}>
               {sel && (
-                <span style={{ position: "absolute", top: 4, right: 6, color: "#1D9E75", fontSize: "11px", fontWeight: 600 }}>✓</span>
+                <span style={{ position: "absolute", top: 4, right: 6, color: COLOR_ACENTO, fontSize: "11px", fontWeight: 700 }}></span>
               )}
-              <div style={{ fontSize: "11px", fontWeight: 500, color: sel ? "#0F6E56" : "var(--color-text-primary)", marginBottom: 2 }}>{o.nombre}</div>
+              <div style={{ fontSize: "11px", fontWeight: 600, color: sel ? COLOR_ACENTO : "var(--color-text-primary)", marginBottom: 2 }}>{o.nombre}</div>
               <div style={{ fontSize: "10px", color: "var(--color-text-secondary)" }}>p:{o.peso} v:{o.valor}</div>
             </div>
           );

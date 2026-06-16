@@ -193,7 +193,7 @@ export default function PanelEstadisticas({ decision, resultado, objetos, W }) {
       {/* Tabla DP */}
       <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--color-text-secondary)",
         textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
-        Tabla DP{" "}
+        Tabla PD{" "}
         <span style={{ fontWeight: 400, color: "var(--color-text-tertiary)", fontSize: "11px" }}>
           (filas = objetos, columnas = capacidad W)
         </span>

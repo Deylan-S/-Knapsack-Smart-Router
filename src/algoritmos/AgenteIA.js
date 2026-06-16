@@ -1,12 +1,16 @@
 /**
  * agenteIA.js
- * Integración con Gemini API para el Agente Inteligente de Enrutamiento.
- * Usa Structured Outputs (responseMimeType: application/json).
+ * Integración con Gemini API usando el SDK oficial @google/genai.
+ * Usa Structured Outputs (responseSchema) para garantizar JSON parseable.
+ *
+ * Requiere: npm install @google/genai
  *
  * Respuesta del agente:
  *   { algoritmoElegido, justificacion, tiempoEstimadoMs,
  *     operacionesEstimadas, advertencias, esExacto }
  */
+
+import { GoogleGenAI, Type } from "@google/genai";
 
 export const ALGORITMOS = {
   BACKTRACKING: "backtracking",
@@ -14,11 +18,43 @@ export const ALGORITMOS = {
   GREEDY: "greedy",
 };
 
-const MODELO = "gemini-2.0-flash";
-const URL_API = (key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${key}`;
+const MODELO = "gemini-2.5-flash-lite";
 
-// System Prompt
+// ── Esquema de respuesta estructurada
+// Define exactamente la forma que debe tener la respuesta del agente.
+const ESQUEMA_RESPUESTA = {
+  type: Type.OBJECT,
+  properties: {
+    algoritmoElegido: {
+      type: Type.STRING,
+      enum: [ALGORITMOS.BACKTRACKING, ALGORITMOS.PROGRAMACION_DINAMICA, ALGORITMOS.GREEDY],
+      description: "El algoritmo que el agente considera óptimo para este problema.",
+    },
+    justificacion: {
+      type: Type.STRING,
+      description: "Explicación técnica de la decisión, mencionando complejidades, N, W y restricciones.",
+    },
+    tiempoEstimadoMs: {
+      type: Type.NUMBER,
+      description: "Estimación del tiempo de ejecución en milisegundos.",
+    },
+    operacionesEstimadas: {
+      type: Type.INTEGER,
+      description: "Estimación del número de operaciones que realizará el algoritmo.",
+    },
+    advertencias: {
+      type: Type.STRING,
+      description: "Advertencia relevante para el usuario, o cadena vacía si no hay ninguna.",
+    },
+    esExacto: {
+      type: Type.BOOLEAN,
+      description: "Indica si el algoritmo elegido garantiza la solución óptima exacta.",
+    },
+  },
+  required: ["algoritmoElegido", "justificacion", "tiempoEstimadoMs", "operacionesEstimadas", "advertencias", "esExacto"],
+};
+
+// ── System Prompt 
 
 function construirSystemPrompt() {
   return `
@@ -62,22 +98,11 @@ disponibles es el más adecuado, justificando tu decisión con rigor técnico.
 - Programación Dinámica: (N × W) / 50000000 segundos.
 - Greedy: siempre < 5 ms.
 
-## Formato de respuesta OBLIGATORIO
-
-Responde ÚNICAMENTE con un objeto JSON válido. Sin texto adicional, sin bloques markdown.
-
-{
-  "algoritmoElegido": "backtracking" | "programacion_dinamica" | "greedy",
-  "justificacion": "Explicación técnica clara mencionando complejidades, N, W y restricciones.",
-  "tiempoEstimadoMs": <número en milisegundos>,
-  "operacionesEstimadas": <número entero>,
-  "advertencias": "<advertencia relevante o cadena vacía>",
-  "esExacto": true | false
-}
+Debes completar todos los campos del esquema de respuesta proporcionado.
   `.trim();
 }
 
-//Función principal
+// ── Función principal
 
 /**
  * Consulta al Agente de IA para que elija el algoritmo óptimo.
@@ -98,49 +123,34 @@ Analiza este problema de la mochila y elige el algoritmo óptimo:
 - Capacidad de la mochila (W): ${w}
 - Prioridad del usuario: ${prioridad === "velocidad" ? "Velocidad Máxima (acepta aproximaciones)" : "Máxima Exactitud (sin importar el tiempo)"}
 - Tiempo límite tolerable: ${tiempoLimite} segundos
-
-Responde ÚNICAMENTE con el objeto JSON especificado.
   `.trim();
-
-  const cuerpo = {
-    system_instruction: {
-      parts: [{ text: construirSystemPrompt() }],
-    },
-    contents: [
-      { role: "user", parts: [{ text: mensajeUsuario }] },
-    ],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.1,
-    },
-  };
 
   let respuesta;
   try {
-    respuesta = await fetch(URL_API(apiKey), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cuerpo),
+    const ai = new GoogleGenAI({ apiKey });
+
+    respuesta = await ai.models.generateContent({
+      model: MODELO,
+      contents: mensajeUsuario,
+      config: {
+        systemInstruction: construirSystemPrompt(),
+        responseMimeType: "application/json",
+        responseSchema: ESQUEMA_RESPUESTA,
+        temperature: 0.1,
+      },
     });
   } catch (e) {
-    throw new Error(`Error de red al contactar Gemini: ${e.message}`);
+    throw new Error(`Error al contactar al Agente de IA: ${e.message}`, { cause: e });
   }
 
-  if (!respuesta.ok) {
-    const texto = await respuesta.text();
-    throw new Error(`Gemini respondió con error ${respuesta.status}: ${texto.slice(0, 300)}`);
-  }
-
-  const datos = await respuesta.json();
-  const raw = datos?.candidates?.[0]?.content?.parts?.[0]?.text;
-
+  const raw = respuesta?.text;
   if (!raw) {
     throw new Error("La API de Gemini no devolvió contenido.");
   }
 
   let decision;
   try {
-    decision = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    decision = JSON.parse(raw);
   } catch {
     throw new Error(`Respuesta del agente no es JSON válido: ${raw}`);
   }
