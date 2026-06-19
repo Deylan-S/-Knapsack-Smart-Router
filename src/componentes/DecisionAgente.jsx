@@ -4,6 +4,7 @@
  * justificación, exactitud y advertencias.
  */
 
+// Mapea las claves internas del agente a nombres legibles para el usuario.
 const LABELS = {
   backtracking: "Backtracking",
   programacion_dinamica: "Programación Dinámica",
@@ -25,7 +26,7 @@ export default function DecisionAgente({ decision }) {
         Decisión del agente de IA
       </p>
 
-      {/* Badges */}
+      {/* Algoritmo elegido + indicador de exactitud */}
       <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap" }}>
         <span style={{
           display: "inline-block", fontSize: "12px", padding: "4px 10px",
@@ -40,7 +41,7 @@ export default function DecisionAgente({ decision }) {
           background: decision.esExacto ? "var(--color-background-success)" : "var(--color-background-warning)",
           color: decision.esExacto ? "var(--color-text-success)" : "var(--color-text-warning)",
         }}>
-          {decision.esExacto ? "✓ Exacto" : "⚠ Aproximado"}
+          {decision.esExacto ? " Exacto" : "⚠ Aproximado"}
         </span>
       </div>
 
@@ -58,7 +59,7 @@ export default function DecisionAgente({ decision }) {
         {decision.justificacion}
       </div>
 
-      {/* Advertencias */}
+      {/* Advertencias — solo se renderiza si el agente devolvió alguna */}
       {decision.advertencias && decision.advertencias.trim() !== "" && (
         <div style={{
           background: "var(--color-background-warning)",

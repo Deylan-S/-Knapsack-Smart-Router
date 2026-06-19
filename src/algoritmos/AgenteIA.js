@@ -1,9 +1,11 @@
 /**
- * agenteIA.js
- * Integración con Gemini API usando el SDK oficial @google/genai.
- * Usa Structured Outputs (responseSchema) para garantizar JSON parseable.
+ * agente.js
+ * Módulo que conecta con la API de Gemini para actuar como agente de ruteo
+ * del Knapsack Smart Router. Recibe los parámetros del problema (N, W,
+ * prioridad, tiempo límite) y devuelve la decisión estructurada del agente.
  *
- * Requiere: npm install @google/genai
+ * Usa Structured Outputs (responseSchema) para forzar un JSON válido
+ * y parseable sin necesidad de limpiar la respuesta manualmente.
  *
  * Respuesta del agente:
  *   { algoritmoElegido, justificacion, tiempoEstimadoMs,
@@ -20,8 +22,8 @@ export const ALGORITMOS = {
 
 const MODELO = "gemini-2.5-flash-lite";
 
-// ── Esquema de respuesta estructurada
-// Define exactamente la forma que debe tener la respuesta del agente.
+// El esquema le dice a Gemini exactamente qué campos devolver y de qué tipo.
+// Si la respuesta no cumple la forma, la API la rechaza antes de llegar aquí.
 const ESQUEMA_RESPUESTA = {
   type: Type.OBJECT,
   properties: {
@@ -53,8 +55,6 @@ const ESQUEMA_RESPUESTA = {
   },
   required: ["algoritmoElegido", "justificacion", "tiempoEstimadoMs", "operacionesEstimadas", "advertencias", "esExacto"],
 };
-
-// ── System Prompt 
 
 function construirSystemPrompt() {
   return `
@@ -102,8 +102,6 @@ Debes completar todos los campos del esquema de respuesta proporcionado.
   `.trim();
 }
 
-// ── Función principal
-
 /**
  * Consulta al Agente de IA para que elija el algoritmo óptimo.
  *
@@ -136,6 +134,7 @@ Analiza este problema de la mochila y elige el algoritmo óptimo:
         systemInstruction: construirSystemPrompt(),
         responseMimeType: "application/json",
         responseSchema: ESQUEMA_RESPUESTA,
+        // temperature bajo para que el agente sea determinista y no creativo
         temperature: 0.1,
       },
     });
@@ -159,6 +158,8 @@ Analiza este problema de la mochila y elige el algoritmo óptimo:
   return decision;
 }
 
+// Defensa ante respuestas malformadas: aunque responseSchema ya filtra en la
+// API, esta validación cubre cualquier caso que se meta localmente.
 function validarDecision(d) {
   const campos = ["algoritmoElegido", "justificacion", "tiempoEstimadoMs",
                   "operacionesEstimadas", "advertencias", "esExacto"];
