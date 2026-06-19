@@ -1,12 +1,38 @@
 /**
  * usarMochila.js
+ * Hook principal — ahora ejecuta los algoritmos en un Web Worker
+ * para evitar que la interfaz se congele con N cercano al límite.
  */
 
-import { useState, useCallback } from "react";
-import { resolverMochilaPD } from "../algoritmos/programacionDinamica";
+import { useState, useCallback, useRef } from "react";
 import { consultarAgente, ALGORITMOS } from "../algoritmos/agenteIA";
-import { resolverMochilaBacktracking } from "../algoritmos/Backtracking";
-import { resolverMochilaAvido } from "../algoritmos/Greedy";
+
+// Función auxiliar: ejecuta el algoritmo en el Worker y devuelve una Promise
+function ejecutarEnWorker(algoritmo, objetos, capacidad) {
+  return new Promise((resolve, reject) => {
+    // Vite importa workers con el sufijo ?worker
+    const worker = new Worker(
+      new URL("../algoritmos/knapsackWorker.js", import.meta.url),
+      { type: "module" }
+    );
+
+    worker.onmessage = (e) => {
+      worker.terminate(); // liberar el hilo cuando termina
+      if (e.data.ok) {
+        resolve(e.data.resultado);
+      } else {
+        reject(new Error(e.data.error));
+      }
+    };
+
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(new Error(`Error en el Worker: ${e.message}`));
+    };
+
+    worker.postMessage({ algoritmo, objetos, capacidad });
+  });
+}
 
 export function usarMochila() {
   const [objetos, setObjetos] = useState([]);
@@ -15,7 +41,6 @@ export function usarMochila() {
   const [prioridad, setPrioridad] = useState("exactitud");
   const [tiempoLimite, setTiempoLimite] = useState(5);
   const [apiKey, setApiKey] = useState("");
-
   const [algoritmoManual, setAlgoritmoManual] = useState("auto");
 
   const [fase, setFase] = useState("idle");
@@ -45,63 +70,11 @@ export function usarMochila() {
     limpiarResultados();
   }, [n, limpiarResultados]);
 
-  function normalizarResultado(raw, algoritmo, objs, cap) {
-    switch (algoritmo) {
-
-      case ALGORITMOS.PROGRAMACION_DINAMICA:
-        return raw;
-
-      case ALGORITMOS.BACKTRACKING:
-        return {
-          valorOptimo:          raw.valorMaximo,
-          pesoTotal:            raw.itemsSeleccionados.reduce((s, o) => s + o.peso, 0),
-          objetosSeleccionados: raw.itemsSeleccionados.map((o) => o.id), // normalizar a IDs
-          operaciones:          raw.llamadasRecursivas,
-          tiempoMs:             parseFloat(raw.tiempoEjecucion.toFixed(4)),
-          tabla:                [],
-        };
-
-      case ALGORITMOS.GREEDY: {
-        const inicio  = performance.now();
-        const pesos   = objs.map((o) => o.peso);
-        const valores = objs.map((o) => o.valor);
-        const greedy  = resolverMochilaAvido(pesos, valores, cap);
-        const fin     = performance.now();
-
-        return {
-          valorOptimo:          greedy.valorTotal,
-          pesoTotal:            greedy.pesoTotal,
-          objetosSeleccionados: greedy.objetosSeleccionados.map((item) => objs[item.indice].id), // normalizar a IDs
-          operaciones:          greedy.conteoOperaciones,
-          tiempoMs:             parseFloat((fin - inicio).toFixed(4)),
-          tabla:                [],
-        };
-      }
-
-      default:
-        throw new Error(`Algoritmo desconocido: ${algoritmo}`);
-    }
-  }
-
-  function ejecutarAlgoritmo(algoritmo, objs, cap) {
-    switch (algoritmo) {
-      case ALGORITMOS.PROGRAMACION_DINAMICA:
-        return normalizarResultado(resolverMochilaPD(objs, cap), algoritmo, objs, cap);
-
-      case ALGORITMOS.BACKTRACKING:
-        return normalizarResultado(resolverMochilaBacktracking(objs, cap), algoritmo, objs, cap);
-
-      case ALGORITMOS.GREEDY:
-        return normalizarResultado(null, algoritmo, objs, cap);
-
-      default:
-        throw new Error(`Algoritmo desconocido: ${algoritmo}`);
-    }
-  }
-
   const resolver = useCallback(async () => {
-    if (objetos.length === 0) { setError("Primero genera los objetos del problema."); return; }
-
+    if (objetos.length === 0) {
+      setError("Primero genera los objetos del problema.");
+      return;
+    }
     if (algoritmoManual === "auto" && !apiKey.trim()) {
       setError("Ingresa tu API Key de Gemini o seleccioná un algoritmo manual.");
       return;
@@ -113,23 +86,23 @@ export function usarMochila() {
       let algoritmoAEjecutar;
 
       if (algoritmoManual !== "auto") {
+        // ── Modo manual ──────────────────────────────────────────────────────
         algoritmoAEjecutar = algoritmoManual;
-
         setFase("ejecutando");
-        setMensajeFase(`Ejecutando ${algoritmoManual} manualmente...`);
-        await new Promise((r) => setTimeout(r, 150));
+        setMensajeFase(`Ejecutando ${algoritmoManual} en hilo secundario...`);
 
         setDecisionAgente({
-          algoritmoElegido:      algoritmoManual,
-          justificacion:         `Algoritmo seleccionado manualmente por el profesor. El agente de IA no fue consultado.`,
-          tiempoEstimadoMs:      null,
-          operacionesEstimadas:  null,
-          advertencias:          "",
-          esExacto:              algoritmoManual !== ALGORITMOS.GREEDY,
-          seleccionManual:       true,
+          algoritmoElegido:     algoritmoManual,
+          justificacion:        "Algoritmo seleccionado manualmente. El agente de IA no fue consultado.",
+          tiempoEstimadoMs:     null,
+          operacionesEstimadas: null,
+          advertencias:         "",
+          esExacto:             algoritmoManual !== ALGORITMOS.GREEDY,
+          seleccionManual:      true,
         });
 
       } else {
+        // ── Modo automático: consultar al agente ─────────────────────────────
         setFase("consultando");
         setMensajeFase("Consultando al agente de IA...");
 
@@ -137,15 +110,16 @@ export function usarMochila() {
           n: objetos.length, w: capacidad, prioridad, tiempoLimite, apiKey,
         });
         setDecisionAgente(decision);
-
         algoritmoAEjecutar = decision.algoritmoElegido;
 
         setFase("ejecutando");
-        setMensajeFase(`Ejecutando ${algoritmoAEjecutar} localmente...`);
-        await new Promise((r) => setTimeout(r, 150));
+        setMensajeFase(`Ejecutando ${algoritmoAEjecutar} en hilo secundario...`);
       }
 
-      const resultado = ejecutarAlgoritmo(algoritmoAEjecutar, objetos, capacidad);
+      // ── Ejecución en Web Worker (hilo secundario) ────────────────────────
+      // La interfaz permanece fluida mientras el Worker trabaja en paralelo
+      const resultado = await ejecutarEnWorker(algoritmoAEjecutar, objetos, capacidad);
+
       setResultadoDP(resultado);
       setFase("listo");
       setMensajeFase("¡Solución encontrada!");
@@ -158,14 +132,11 @@ export function usarMochila() {
 
   const soloDP = useCallback(async () => {
     if (objetos.length === 0) { setError("Primero genera los objetos."); return; }
-
     limpiarResultados();
     setFase("ejecutando");
-    setMensajeFase("Ejecutando Programación Dinámica localmente...");
-    await new Promise((r) => setTimeout(r, 100));
-
+    setMensajeFase("Ejecutando Programación Dinámica en hilo secundario...");
     try {
-      const resultado = ejecutarAlgoritmo(ALGORITMOS.PROGRAMACION_DINAMICA, objetos, capacidad);
+      const resultado = await ejecutarEnWorker(ALGORITMOS.PROGRAMACION_DINAMICA, objetos, capacidad);
       setResultadoDP(resultado);
       setFase("listo");
       setMensajeFase("¡DP completada!");
